@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.id-card-container {
+  aspect-ratio: 1.586; /* Standard ID card ratio (CR80 - 85.6mm x 54mm) */
+  max-width: 950px;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .id-card-container {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    box-shadow: none !important;
+  }
+
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+}
