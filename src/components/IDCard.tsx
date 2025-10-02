@@ -160,7 +160,7 @@ export default function IDCard({
             <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black w-1/2 text-right">GENERAL</p>
           </div>
           <div className="flex justify-between items-center">
-            <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold uppercase w-1/2">MEMBER EXPIRES ON</p>
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold uppercase w-1/2">MEMBERSHIP EXPIRES ON</p>
             <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black w-1/2 text-right">
               {formatDate(user['Member until'])}
             </p>
