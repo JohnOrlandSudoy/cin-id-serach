@@ -1,28 +1,39 @@
-import { useState, useRef } from 'react';
-import { Search, Upload, Printer, Eye } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Eye, Download } from 'lucide-react';
+import IDCard from './components/IDCard';
 
 interface User {
   Name: string;
   Surname: string;
   Region: string;
   CIN: string;
-  "Member until": string;
+  'Member until': string;
   Status: string;
   Team: string;
-  "Age Group": string;
+  'Age Group': string;
 }
 
 const DUMMY_USERS: User[] = [
-  { Name: "Roberto", Surname: "Destri", Region: "South", CIN: "20250001", "Member until": "2027-07-06", Status: "Active", Team: "Team A", "Age Group": "Senior" },
-  { Name: "Bernhard", Surname: "Fuss", Region: "North", CIN: "20250002", "Member until": "2027-07-31", Status: "Inactive", Team: "Team D", "Age Group": "Junior" },
-  { Name: "Sonja", Surname: "Keppeler", Region: "East", CIN: "20250003", "Member until": "2026-12-15", Status: "Pending", Team: "Team C", "Age Group": "Adult" },
-  { Name: "Michael", Surname: "Schmidt", Region: "West", CIN: "20250004", "Member until": "2028-03-20", Status: "Active", Team: "Team B", "Age Group": "Senior" },
-  { Name: "Anna", Surname: "Mueller", Region: "South", CIN: "20250005", "Member until": "2027-09-12", Status: "Active", Team: "Team A", "Age Group": "Junior" },
-  { Name: "Thomas", Surname: "Weber", Region: "North", CIN: "20250006", "Member until": "2026-11-30", Status: "Pending", Team: "Team D", "Age Group": "Adult" },
-  { Name: "Lisa", Surname: "Fischer", Region: "East", CIN: "20250007", "Member until": "2027-05-18", Status: "Active", Team: "Team C", "Age Group": "Senior" },
-  { Name: "David", Surname: "Wagner", Region: "West", CIN: "20250008", "Member until": "2028-01-25", Status: "Inactive", Team: "Team B", "Age Group": "Junior" },
-  { Name: "Sarah", Surname: "Becker", Region: "South", CIN: "20250009", "Member until": "2027-08-14", Status: "Active", Team: "Team A", "Age Group": "Adult" },
-  { Name: "Daniel", Surname: "Schulz", Region: "North", CIN: "20250010", "Member until": "2026-10-22", Status: "Pending", Team: "Team D", "Age Group": "Senior" }
+  {
+    Name: 'Roberto',
+    Surname: 'Destri',
+    Region: 'South',
+    CIN: '20250001',
+    'Member until': '2027-07-06',
+    Status: 'Active',
+    Team: 'Team A',
+    'Age Group': 'Senior',
+  },
+  {
+    Name: 'Daniel',
+    Surname: 'Schulz',
+    Region: 'North',
+    CIN: '20250010',
+    'Member until': '2026-10-22',
+    Status: 'Pending',
+    Team: 'Team D',
+    'Age Group': 'Senior',
+  },
 ];
 
 const getStorageKey = (cin: string) => `id_photo_${cin}`;
@@ -31,19 +42,19 @@ function App() {
   const [searchCIN, setSearchCIN] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showFullSize, setShowFullSize] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null); // Ref directly to IDCard container
 
   const handleSearch = () => {
-    const user = DUMMY_USERS.find(u => u.CIN === searchCIN);
+    const user = DUMMY_USERS.find((u) => u.CIN === searchCIN);
     if (user) {
       setSelectedUser(user);
       setError('');
-      setShowPreview(false);
-      // Load photo from localStorage
-      const savedPhoto = localStorage.getItem(getStorageKey(user.CIN));
-      setUploadedPhoto(savedPhoto);
+      setShowFullSize(false);
+      const saved = localStorage.getItem(getStorageKey(user.CIN));
+      setUploadedPhoto(saved);
     } else {
       setSelectedUser(null);
       setUploadedPhoto(null);
@@ -52,8 +63,8 @@ function App() {
   };
 
   const handleInputChange = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 8);
-    setSearchCIN(digitsOnly);
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    setSearchCIN(digits);
     setError('');
   };
 
@@ -64,213 +75,207 @@ function App() {
       reader.onloadend = () => {
         const result = reader.result as string;
         setUploadedPhoto(result);
-        // Save to localStorage
         localStorage.setItem(getStorageKey(selectedUser.CIN), result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownload = async () => {
+    if (!selectedUser || !cardRef.current) return;
+
+    // Temporarily remove no-print class to include all content
+    const originalClass = cardRef.current.className;
+    cardRef.current.className = cardRef.current.className.replace('no-print', '');
+
+    const width = 1080;
+    const height = 1920;
+    const scale = 2; // Higher resolution for clarity
+
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '-9999px';
+    tempContainer.style.width = `${width}px`;
+    tempContainer.style.height = `${height}px`;
+
+    const cloned = cardRef.current.cloneNode(true) as HTMLElement;
+    cloned.style.width = `${width}px`;
+    cloned.style.height = `${height}px`;
+    cloned.style.transform = `scale(${scale})`;
+    tempContainer.appendChild(cloned);
+    document.body.appendChild(tempContainer);
+
+    await new Promise((resolve) => setTimeout(resolve, 600)); // Wait for images to load
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(tempContainer, {
+        scale: scale,
+        useCORS: true,
+        allowTaint: true,
+        width: width * scale,
+        height: height * scale,
+        backgroundColor: null,
+        logging: false,
+      });
+
+      const expirationDate = new Date(selectedUser['Member until']).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).toUpperCase(); // Matches IDCard.tsx format
+      const downloadDate = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).replace(/[, ]/g, '-').toUpperCase(); // e.g., 10-02-2025-11-59-AM
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PDSF_EID_${selectedUser.CIN}_${selectedUser.Name}_${selectedUser.Surname}_EXP_${expirationDate}_${downloadDate}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    } catch (err) {
+      console.error('Error generating image:', err);
+      alert('Failed to generate image');
+    } finally {
+      document.body.removeChild(tempContainer);
+      cardRef.current.className = originalClass; // Restore original class
+    }
   };
 
   const isValidCIN = searchCIN.length === 8;
 
+  useEffect(() => {
+    const show = () => setShowFullSize(true);
+    const download = () => handleDownload();
+    window.addEventListener('showFullSize', show);
+    window.addEventListener('downloadCard', download);
+    return () => {
+      window.removeEventListener('showFullSize', show);
+      window.removeEventListener('downloadCard', download);
+    };
+  }, [selectedUser]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8 no-print">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">Protoype Sample ID Search For Testing Only</h1>
-          <p className="text-slate-600">Enter an 8-digit CIN to retrieve member details</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 relative">
+      {/* Header */}
+      <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 bg-white shadow-md no-print">
+        <div className="flex justify-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 overflow-hidden rounded-full shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <img
+              src="/logo.png"
+              alt="Philippine DanceSport Federation Logo"
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
+        <p className="text-slate-700 text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-center">
+          Enter an 8-digit CIN to retrieve member details
+        </p>
+      </div>
 
-        {/* Search Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 no-print">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Competitor Identification Number (CIN)
-              </label>
+      {/* Search */}
+      <div className="bg-white shadow-lg p-4 sm:p-6 md:p-8 lg:p-10 no-print">
+        <div className="flex flex-col items-center justify-center gap-4 max-w-2xl mx-auto">
+          <div className="w-full text-center">
+            <label className="block text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-gray-800 mb-2">
+              Competitor Identification Number (CIN)
+            </label>
+            <div className="relative">
               <input
                 type="text"
                 value={searchCIN}
                 onChange={(e) => handleInputChange(e.target.value)}
                 placeholder="Enter 8-digit CIN"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
-                maxLength={8}
+                className="w-full sm:w-80 md:w-96 lg:w-[28rem] px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-center placeholder-gray-500"
               />
               {searchCIN && !isValidCIN && (
-                <p className="text-sm text-red-600 mt-1">CIN must be exactly 8 digits</p>
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl text-red-600 mt-1">
+                  CIN must be exactly 8 digits
+                </p>
               )}
             </div>
-            <div className="flex items-end">
-              <button
-                onClick={handleSearch}
-                disabled={!isValidCIN}
-                className="w-full sm:w-auto px-6 py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-              >
-                <Search size={20} />
-                Search
-              </button>
-            </div>
           </div>
-          {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              {error}
-            </div>
-          )}
+          <button
+            onClick={handleSearch}
+            disabled={!isValidCIN}
+            className="w-full sm:w-auto px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-900 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <Search size={20} className="w-5 sm:w-6 md:w-7 lg:w-8" />
+            Search
+          </button>
         </div>
-
-        {/* ID Card Display */}
-        {selectedUser && (
-          <div className="max-w-4xl mx-auto">
-            {/* Standard ID Card - Credit Card Size Ratio */}
-            <div className="relative bg-gradient-to-br from-cyan-400 via-blue-500 to-blue-600 rounded-2xl shadow-2xl overflow-hidden print:shadow-lg id-card-container">
-              {/* Decorative patterns */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full translate-y-1/2 -translate-x-1/2"></div>
-              </div>
-
-              {/* ID Card Content */}
-              <div className="relative p-10">
-                <div className="flex flex-col md:flex-row gap-8 items-center">
-                  {/* Photo Section - Left Side */}
-                  <div className="flex-shrink-0">
-                    <div className="relative w-56 h-64 border-6 border-blue-900 rounded-3xl overflow-hidden bg-white shadow-xl">
-                      {uploadedPhoto ? (
-                        <img
-                          src={uploadedPhoto}
-                          alt="ID Photo"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-                          <div className="text-center">
-                            <div className="w-24 h-24 mx-auto bg-slate-300 rounded-full mb-3"></div>
-                            <p className="text-slate-500 text-sm font-medium">No Photo</p>
-                          </div>
-                        </div>
-                      )}
-                      {!showPreview && (
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="absolute inset-0 bg-black bg-opacity-60 text-white opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 no-print"
-                        >
-                          <Upload size={40} />
-                          <span className="font-bold text-lg">Add Photo</span>
-                        </button>
-                      )}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Details Section - Right Side */}
-                  <div className="flex-1 text-white w-full">
-                    {/* Title */}
-                    <h2 className="text-5xl font-black mb-8 tracking-tight drop-shadow-lg" style={{ color: '#0000CD' }}>
-                      MEMBER ID CARD
-                    </h2>
-
-                    {/* Name */}
-                    <div className="mb-6">
-                      <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Name</label>
-                      <p className="text-3xl font-black text-black mt-1 drop-shadow">
-                        {selectedUser.Name} {selectedUser.Surname}
-                      </p>
-                    </div>
-
-                    {/* Two Column Layout */}
-                    <div className="grid grid-cols-2 gap-6 mb-6">
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>CIN Number</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser.CIN}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Member Until</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser["Member until"]}</p>
-                      </div>
-                    </div>
-
-                    {/* Additional Details */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Region</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser.Region}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Team</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser.Team}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Age Group</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser["Age Group"]}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold uppercase tracking-wider" style={{ color: '#0000CD' }}>Status</label>
-                        <p className="text-xl font-black text-black mt-1 drop-shadow">{selectedUser.Status}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            {!showPreview && (
-              <div className="mt-8 flex flex-wrap gap-4 justify-center no-print">
-                <button
-                  onClick={() => setShowPreview(true)}
-                  className="px-8 py-4 bg-blue-700 text-white rounded-xl font-bold hover:bg-blue-600 transition flex items-center gap-2 text-lg shadow-lg"
-                >
-                  <Eye size={24} />
-                  Next View
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="px-8 py-4 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition flex items-center gap-2 text-lg shadow-lg"
-                >
-                  <Printer size={24} />
-                  Print ID Card
-                </button>
-              </div>
-            )}
-
-            {showPreview && (
-              <div className="mt-8">
-                <div className="bg-white rounded-xl shadow-lg p-8 no-print">
-                  <h3 className="text-2xl font-bold text-slate-800 mb-4 text-center">Preview Mode</h3>
-                  <p className="text-center text-slate-600 mb-6">This is how your ID card will appear when printed</p>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    <button
-                      onClick={() => setShowPreview(false)}
-                      className="px-8 py-4 bg-slate-500 text-white rounded-xl font-bold hover:bg-slate-400 transition text-lg"
-                    >
-                      Back to Edit
-                    </button>
-                    <button
-                      onClick={handlePrint}
-                      className="px-8 py-4 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition flex items-center gap-2 text-lg shadow-lg"
-                    >
-                      <Printer size={24} />
-                      Print Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+        {error && (
+          <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-center max-w-md mx-auto">
+            {error}
           </div>
         )}
       </div>
+
+      {/* Card (wrapped for capture) */}
+      {selectedUser && (
+        <div ref={cardRef} className="id-card-wrapper">
+          <IDCard
+            user={selectedUser}
+            uploadedPhoto={uploadedPhoto}
+            showFullSize={showFullSize}
+            onPhotoUpload={handlePhotoUpload}
+            fileInputRef={fileInputRef}
+          />
+        </div>
+      )}
+
+      {/* Full-size modal */}
+      {selectedUser && showFullSize && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 no-print">
+          <div className="relative max-w-4xl w-full p-4 sm:p-6 md:p-8 lg:p-10">
+            <button
+              onClick={() => setShowFullSize(false)}
+              className="absolute top-2 right-2 z-10 bg-white text-black rounded-full w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 flex items-center justify-center font-bold hover:bg-gray-200 transition-colors"
+            >
+              ×
+            </button>
+            <div className="mx-auto max-w-2xl">
+              <IDCard
+                user={selectedUser}
+                uploadedPhoto={uploadedPhoto}
+                showFullSize={true}
+                onPhotoUpload={handlePhotoUpload}
+                fileInputRef={fileInputRef}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sticky action buttons (outside the captured area) */}
+      {selectedUser && !showFullSize && (
+        <div className="flex gap-3 justify-center py-3 sm:py-4 md:py-5 lg:py-6 no-print sticky bottom-0 bg-gray-800 z-10 w-full">
+          <button
+            onClick={() => setShowFullSize(true)}
+            className="px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-900 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <Eye size={16} className="w-4 sm:w-5 md:w-6 lg:w-7" />
+            View
+          </button>
+          <button
+            onClick={handleDownload}
+            className="px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-900 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <Download size={16} className="w-4 sm:w-5 md:w-6 lg:w-7" />
+            Download
+          </button>
+        </div>
+      )}
     </div>
   );
 }
